@@ -110,7 +110,8 @@ def main():
 
     K = np.zeros([nDofs,nDofs]) # Global stiffness matrix
     Kc = np.zeros([nDofs,nDofs]) # Global convection matrix
-    f = np.zeros((nDofs, 1)) # Global f matrix
+    fb = np.zeros((nDofs, 1)) # Global fb matrix
+    fc = np.zeros((nDofs, 1)) # Global fc matrix
 
     # Assemble the part of K that comes from thermal conductivity
     for eltopo, elx, ely, elMarker in zip(edof, ex, ey, elementmarkers):
@@ -123,6 +124,7 @@ def main():
     # Assemble the part of K (Kc) that comes from thermal convection
     # Also create force vector for h-convection
     for element in edof:
+        #print(element)
         Kce = np.zeros((3, 3))
         if element[0] in bdofs[qn]:
             if element[1] in bdofs[qn]:
@@ -132,6 +134,8 @@ def main():
                 y2 = coords[element[1] - 1][1]
                 Le = np.sqrt((x2-x1)**2 + (y2-y1)**2)
                 Kce += alpha*Le/6*np.array([[2, 1, 0], [1, 2, 0], [0, 0, 0]])
+                fc[element[0]] += alpha*Le*T_inf/2
+                fc[element[1]] += alpha*Le*T_inf/2
             if element[2] in bdofs[qn]: #corner elements can exist
                 x1 = coords[element[0] - 1][0]
                 x2 = coords[element[2] - 1][0]
@@ -139,6 +143,8 @@ def main():
                 y2 = coords[element[2] - 1][1]
                 Le = np.sqrt((x2-x1)**2 + (y2-y1)**2)
                 Kce += alpha*Le/6*np.array([[2, 0, 1], [0, 0, 0], [1, 0, 2]])
+                fc[element[0]] += alpha*Le*T_inf/2
+                fc[element[2]] += alpha*Le*T_inf/2
         if element[1] in bdofs[qn]: #corner elements can exist
             if element[2] in bdofs[qn]: #corner elements can exist
                 x1 = coords[element[0] - 1][0]
@@ -147,28 +153,54 @@ def main():
                 y2 = coords[element[2] - 1][1]
                 Le = np.sqrt((x2-x1)**2 + (y2-y1)**2)
                 Kce += alpha*Le/6*np.array([[0, 0, 0], [0, 2, 1], [0, 1, 2]])
-        K = cfc.assem(element, Kc, Kce)
+                fc[element[1]] += alpha*Le*T_inf/2
+                fc[element[2]] += alpha*Le*T_inf/2
+        Kc = cfc.assem(element, Kc, Kce)
+
+        if element[0] in bdofs[qh]:
+            if element[1] in bdofs[qh]:
+                x1 = coords[element[0] - 1][0]
+                x2 = coords[element[1] - 1][0]
+                y1 = coords[element[0] - 1][1]
+                y2 = coords[element[1] - 1][1]
+                Le = np.sqrt((x2-x1)**2 + (y2-y1)**2)
+                fb[element[0]] += h*Le/2
+                fb[element[1]] += h*Le/2
+            if element[2] in bdofs[qh]:
+                x1 = coords[element[0] - 1][0]
+                x2 = coords[element[2] - 1][0]
+                y1 = coords[element[0] - 1][1]
+                y2 = coords[element[2] - 1][1]
+                Le = np.sqrt((x2-x1)**2 + (y2-y1)**2)
+                fb[element[0]] += h*Le/2
+                fb[element[2]] += h*Le/2
+        if element[1] in bdofs[qh]:
+            if element[2] in bdofs[qh]:
+                x1 = coords[element[1] - 1][0]
+                x2 = coords[element[2] - 1][0]
+                y1 = coords[element[1] - 1][1]
+                y2 = coords[element[2] - 1][1]
+                Le = np.sqrt((x2-x1)**2 + (y2-y1)**2)
+                fb[element[1]] += h*Le/2
+                fb[element[2]] += h*Le/2
 
     # Applying boundary conditions
     bc = np.array([], 'i')
-    bcVal = np.array([], 'f')
+    #bcVal = np.array([], 'f')
 
-    bc, bcVal = cfu.applybc(bdofs, bc, bcVal, q0, 0.0)
-    bc, bcVal = cfu.applybc(bdofs, bc, bcVal, qh, h)
-    bc, bcVal = cfu.applybc(bdofs, bc, bcVal, qn, alpha*T_inf)
+    #bc, bcVal = cfu.applybc(bdofs, bc, bcVal, q0, 0.0)
+    #bc, bcVal = cfu.applybc(bdofs, bc, bcVal, qh, h)
+    #bc, bcVal = cfu.applybc(bdofs, bc, bcVal, qn, alpha*T_inf)
 
     Kt = K + Kc
+    f = fb + fc
     
-    
-    for i in range(nDofs):
-        if i % 2 == 0:
-            f[i] = h
-        else:
-            f[i] = -h
-    print(f)
-    #a = cfc.solveq(K, f, bc, bcVal)
+    #print(fb)
+    a = cfc.solveq(K, f, bc)
     #print(bc)
     #print(bcVal)
+
+    #cfc.extract_ed
 
     
 
