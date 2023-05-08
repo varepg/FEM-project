@@ -82,7 +82,7 @@ def main():
     #Constants given by the problem
     t = 0.005 #thickness
     alpha = 40 # convection coefficient
-    h = -10**5 # convection constant
+    h = 10**5 # convection constant (ska det vara minus här?)
     T_inf = 18 # Surrounding temperature
 
     #Adding 
@@ -98,7 +98,7 @@ def main():
 
     K = np.zeros([nDofs,nDofs]) # Global stiffness matrix
     Kc = np.zeros([nDofs,nDofs]) # Global convection matrix
-    f = np.zeros((nDofs, 1)) # Global f matrix
+    f = np.zeros([nDofs, 1]) # Global f matrix
 
     # Assemble the part of K that comes from thermal conductivity
     for eltopo, elx, ely, elMarker in zip(edof, ex, ey, elementmarkers):
@@ -120,7 +120,7 @@ def main():
                 y1 = coords[element[0] - 1][1]
                 y2 = coords[element[1] - 1][1]
                 Le = np.sqrt((x2-x1)**2 + (y2-y1)**2)
-                Kce += alpha*Le/6*np.array([[2, 1, 0], [1, 2, 0], [0, 0, 0]])
+                Kce += alpha*Le/6*np.array([[2, -1, 0], [-1, 2, 0], [0, 0, 0]])
                 f[element[0]] += alpha*Le*T_inf/2
                 f[element[1]] += alpha*Le*T_inf/2
             if element[2] in bdofs[qn]: #corner elements can exist
@@ -129,7 +129,7 @@ def main():
                 y1 = coords[element[0] - 1][1]
                 y2 = coords[element[2] - 1][1]
                 Le = np.sqrt((x2-x1)**2 + (y2-y1)**2)
-                Kce += alpha*Le/6*np.array([[2, 0, 1], [0, 0, 0], [1, 0, 2]])
+                Kce += alpha*Le/6*np.array([[2, 0, -1], [0, 0, 0], [-1, 0, 2]])
                 f[element[0]] += alpha*Le*T_inf/2
                 f[element[2]] += alpha*Le*T_inf/2
         if element[1] in bdofs[qn]: #corner elements can exist
@@ -139,7 +139,7 @@ def main():
                 y1 = coords[element[0] - 1][1]
                 y2 = coords[element[2] - 1][1]
                 Le = np.sqrt((x2-x1)**2 + (y2-y1)**2)
-                Kce += alpha*Le/6*np.array([[0, 0, 0], [0, 2, 1], [0, 1, 2]])
+                Kce += alpha*Le/6*np.array([[0, 0, 0], [0, 2, -1], [0, -1, 2]])
                 f[element[1]] += alpha*Le*T_inf/2
                 f[element[2]] += alpha*Le*T_inf/2
         Kc = cfc.assem(element, Kc, Kce)
@@ -183,8 +183,8 @@ def main():
     
     
     #print(fb)
-    a, r = cfc.solveq(K, f, bc)
-    print(np.shape(a))
+    a, r = cfc.solveq(Kt, f, bc)
+    print(a)
     #print(bcVal)
 
     #ed = cfc.extract_eldisp(edof, a)
@@ -192,7 +192,7 @@ def main():
     #for i in range(np.shape(ex)[0]):
         #es, et = cfc.flw2ts(ex[i, :], ey[i, :], elprop[elementmarkers[i]], ed[i, :])
 
-    cfv.figure(fig_size=(10,10))
+    cfv.figure(fig_size=(8,8))
     # Draw the mesh.
     cfv.drawMesh(
         coords=coords,
