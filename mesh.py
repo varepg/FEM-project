@@ -61,7 +61,7 @@ def main():
 
     mesh.elType = 2          # Degrees of freedom per node.
     mesh.dofsPerNode = 1     # Factor that changes element sizes.
-    mesh.elSizeFactor = 0.15 # Element size Factor
+    mesh.elSizeFactor = 0.05 # Element size Factor
 
     coords, edof, dofs, bdofs, elementmarkers = mesh.create()
 
@@ -70,18 +70,6 @@ def main():
     # dofs is a ndofs x 1 - matrix which gives the index of the nodes in coords
     # bdofs is a map showing which splines belong to which markers
     # elementmarkers shows for each element which surface it belongs
-
-    cfv.figure()
-
-    # Draw the mesh.
-    cfv.drawMesh(
-        coords=coords,
-        edof=edof,
-        dofs_per_node=mesh.dofsPerNode,
-        el_type=mesh.elType,
-        filled=True,
-        title="Gripper"
-            )
 
     # Material constants
     E_c = 128; E_n = 3.00 # Young's modulus
@@ -110,8 +98,7 @@ def main():
 
     K = np.zeros([nDofs,nDofs]) # Global stiffness matrix
     Kc = np.zeros([nDofs,nDofs]) # Global convection matrix
-    fb = np.zeros((nDofs, 1)) # Global fb matrix
-    fc = np.zeros((nDofs, 1)) # Global fc matrix
+    f = np.zeros((nDofs, 1)) # Global f matrix
 
     # Assemble the part of K that comes from thermal conductivity
     for eltopo, elx, ely, elMarker in zip(edof, ex, ey, elementmarkers):
@@ -134,8 +121,8 @@ def main():
                 y2 = coords[element[1] - 1][1]
                 Le = np.sqrt((x2-x1)**2 + (y2-y1)**2)
                 Kce += alpha*Le/6*np.array([[2, 1, 0], [1, 2, 0], [0, 0, 0]])
-                fc[element[0]] += alpha*Le*T_inf/2
-                fc[element[1]] += alpha*Le*T_inf/2
+                f[element[0]] += alpha*Le*T_inf/2
+                f[element[1]] += alpha*Le*T_inf/2
             if element[2] in bdofs[qn]: #corner elements can exist
                 x1 = coords[element[0] - 1][0]
                 x2 = coords[element[2] - 1][0]
@@ -143,8 +130,8 @@ def main():
                 y2 = coords[element[2] - 1][1]
                 Le = np.sqrt((x2-x1)**2 + (y2-y1)**2)
                 Kce += alpha*Le/6*np.array([[2, 0, 1], [0, 0, 0], [1, 0, 2]])
-                fc[element[0]] += alpha*Le*T_inf/2
-                fc[element[2]] += alpha*Le*T_inf/2
+                f[element[0]] += alpha*Le*T_inf/2
+                f[element[2]] += alpha*Le*T_inf/2
         if element[1] in bdofs[qn]: #corner elements can exist
             if element[2] in bdofs[qn]: #corner elements can exist
                 x1 = coords[element[0] - 1][0]
@@ -153,8 +140,8 @@ def main():
                 y2 = coords[element[2] - 1][1]
                 Le = np.sqrt((x2-x1)**2 + (y2-y1)**2)
                 Kce += alpha*Le/6*np.array([[0, 0, 0], [0, 2, 1], [0, 1, 2]])
-                fc[element[1]] += alpha*Le*T_inf/2
-                fc[element[2]] += alpha*Le*T_inf/2
+                f[element[1]] += alpha*Le*T_inf/2
+                f[element[2]] += alpha*Le*T_inf/2
         Kc = cfc.assem(element, Kc, Kce)
 
         if element[0] in bdofs[qh]:
@@ -164,16 +151,16 @@ def main():
                 y1 = coords[element[0] - 1][1]
                 y2 = coords[element[1] - 1][1]
                 Le = np.sqrt((x2-x1)**2 + (y2-y1)**2)
-                fb[element[0]] += h*Le/2
-                fb[element[1]] += h*Le/2
+                f[element[0]] += h*Le/2
+                f[element[1]] += h*Le/2
             if element[2] in bdofs[qh]:
                 x1 = coords[element[0] - 1][0]
                 x2 = coords[element[2] - 1][0]
                 y1 = coords[element[0] - 1][1]
                 y2 = coords[element[2] - 1][1]
                 Le = np.sqrt((x2-x1)**2 + (y2-y1)**2)
-                fb[element[0]] += h*Le/2
-                fb[element[2]] += h*Le/2
+                f[element[0]] += h*Le/2
+                f[element[2]] += h*Le/2
         if element[1] in bdofs[qh]:
             if element[2] in bdofs[qh]:
                 x1 = coords[element[1] - 1][0]
@@ -181,8 +168,8 @@ def main():
                 y1 = coords[element[1] - 1][1]
                 y2 = coords[element[2] - 1][1]
                 Le = np.sqrt((x2-x1)**2 + (y2-y1)**2)
-                fb[element[1]] += h*Le/2
-                fb[element[2]] += h*Le/2
+                f[element[1]] += h*Le/2
+                f[element[2]] += h*Le/2
 
     # Applying boundary conditions
     bc = np.array([], 'i')
@@ -192,18 +179,32 @@ def main():
     #bc, bcVal = cfu.applybc(bdofs, bc, bcVal, qh, h)
     #bc, bcVal = cfu.applybc(bdofs, bc, bcVal, qn, alpha*T_inf)
 
-    Kt = K + Kc
-    f = fb + fc
+    Kt = np.add(K, Kc)
+    
     
     #print(fb)
-    a = cfc.solveq(K, f, bc)
-    #print(bc)
+    a, r = cfc.solveq(K, f, bc)
+    print(np.shape(a))
     #print(bcVal)
 
-    #cfc.extract_ed
+    #ed = cfc.extract_eldisp(edof, a)
 
-    
+    #for i in range(np.shape(ex)[0]):
+        #es, et = cfc.flw2ts(ex[i, :], ey[i, :], elprop[elementmarkers[i]], ed[i, :])
 
+    cfv.figure(fig_size=(10,10))
+    # Draw the mesh.
+    cfv.drawMesh(
+        coords=coords,
+        edof=edof,
+        dofs_per_node=mesh.dofsPerNode,
+        el_type=mesh.elType,
+        filled=True,
+        title="Gripper"
+            )
+
+    cfv.draw_nodal_values_shaded(a, coords, edof, title="Temperature")
+    cfv.colorbar()
     cfv.draw_geometry(g)
     cfv.showAndWait()
 
