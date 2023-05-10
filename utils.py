@@ -1,6 +1,5 @@
 import calfem.core as cfc
 import calfem.utils as cfu
-import plantml
 from gripper import GripperGeometry, GripperMesh
 from numpy.typing import NDArray
 from typing import Tuple
