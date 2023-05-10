@@ -3,13 +3,14 @@ import calfem.geometry as cfg
 import calfem.mesh as cfm
 import calfem.vis_mpl as cfv
 import calfem.utils as cfu
+import plantml
 
 import numpy as np
 
 
 def main():
     g = cfg.Geometry()
-    L = 0.005 #meter
+    L = 0.005 #met
 
     #generating the points
     g.point([0.0, 0.0]) # point 0
@@ -34,7 +35,7 @@ def main():
     g.point([0.35*L, 0.3*L]) # point 19
 
     # Creating marker names instead of numbers
-    q0 = 10; qh = 20; qn = 30; nylon = 40; copper = 50
+    q0 = 1; qh = 2; qn = 3; nylon = 4; copper = 5
 
     #generating the lines between points, with boundary markers
     g.spline([0, 1], marker=q0) # line 0
@@ -44,8 +45,8 @@ def main():
     g.spline([12, 13], marker=qh) # line 13
     g.spline([13, 14], marker=q0) # line 14
     for i in range(14, 19):
-        g.spline([i, i+1], marker = qn) # line 14 - 18
-    g.spline([19, 1], marker = qn) # line 19
+        g.spline([i, i+1]) # line 14 - 18
+    g.spline([19, 1]) # line 19
     g.spline([14, 0], marker=q0) # line 20
 
     # lines connected to marker q0 have q = 0
@@ -59,9 +60,9 @@ def main():
     #creating the mesh
     mesh = cfm.GmshMesh(g)
 
-    mesh.elType = 2          # Degrees of freedom per node.
-    mesh.dofsPerNode = 1     # Factor that changes element sizes.
-    mesh.elSizeFactor = 0.05 # Element size Factor
+    mesh.el_type = 2          # Degrees of freedom per node.
+    mesh.dofs_per_node = 1     # Factor that changes element sizes.
+    mesh.el_size_factor = 0.05 # Element size Factor
 
     coords, edof, dofs, bdofs, elementmarkers = mesh.create()
 
@@ -80,17 +81,17 @@ def main():
     k_c = 385; k_n = 0.26 # Thermal conductivity
     
     #Constants given by the problem
-    t = 0.005 #thickness
+    t = 0.005 #thickness, not needed
     alpha = 40 # convection coefficient
     h = 10**5 # convection constant (ska det vara minus här?)
-    T_inf = 18 # Surrounding temperature
+    T_inf = 18 + 273.15 # Surrounding temperature
 
     #Adding 
     # Create dictionary for the different element properties
 
-    elprop = {}
-    elprop[nylon] = k_n*np.identity(2)
-    elprop[copper] = k_c*np.identity(2)
+    const_matrix = {}
+    const_matrix[nylon] = k_n*np.identity(2)
+    const_matrix[copper] = k_c*np.identity(2)
 
     #Solving the problem
     nDofs = np.size(dofs) #total number of dofs
@@ -105,7 +106,7 @@ def main():
         #print(eltopo)
         #print(elx)
         #print(ely)
-        Ke = cfc.flw2te(elx, ely, [t], elprop[elMarker])
+        Ke = cfc.flw2te(elx, ely, [1], const_matrix[elMarker])
         K = cfc.assem(eltopo, K, Ke)
     
     # Assemble the part of K (Kc) that comes from thermal convection
@@ -121,8 +122,8 @@ def main():
                 y2 = coords[element[1] - 1][1]
                 Le = np.sqrt((x2-x1)**2 + (y2-y1)**2)
                 Kce += alpha*Le/6*np.array([[2, -1, 0], [-1, 2, 0], [0, 0, 0]])
-                f[element[0]] += alpha*Le*T_inf/2
-                f[element[1]] += alpha*Le*T_inf/2
+                f[element[0]-1] += alpha*Le*T_inf/2
+                f[element[1]-1] += alpha*Le*T_inf/2
             if element[2] in bdofs[qn]: #corner elements can exist
                 x1 = coords[element[0] - 1][0]
                 x2 = coords[element[2] - 1][0]
@@ -130,8 +131,8 @@ def main():
                 y2 = coords[element[2] - 1][1]
                 Le = np.sqrt((x2-x1)**2 + (y2-y1)**2)
                 Kce += alpha*Le/6*np.array([[2, 0, -1], [0, 0, 0], [-1, 0, 2]])
-                f[element[0]] += alpha*Le*T_inf/2
-                f[element[2]] += alpha*Le*T_inf/2
+                f[element[0]-1] += alpha*Le*T_inf/2
+                f[element[2]-1] += alpha*Le*T_inf/2
         if element[1] in bdofs[qn]: #corner elements can exist
             if element[2] in bdofs[qn]: #corner elements can exist
                 x1 = coords[element[0] - 1][0]
@@ -140,8 +141,8 @@ def main():
                 y2 = coords[element[2] - 1][1]
                 Le = np.sqrt((x2-x1)**2 + (y2-y1)**2)
                 Kce += alpha*Le/6*np.array([[0, 0, 0], [0, 2, -1], [0, -1, 2]])
-                f[element[1]] += alpha*Le*T_inf/2
-                f[element[2]] += alpha*Le*T_inf/2
+                f[element[1]-1] += alpha*Le*T_inf/2
+                f[element[2]-1] += alpha*Le*T_inf/2
         Kc = cfc.assem(element, Kc, Kce)
 
         if element[0] in bdofs[qh]:
@@ -151,16 +152,16 @@ def main():
                 y1 = coords[element[0] - 1][1]
                 y2 = coords[element[1] - 1][1]
                 Le = np.sqrt((x2-x1)**2 + (y2-y1)**2)
-                f[element[0]] += h*Le/2
-                f[element[1]] += h*Le/2
+                f[element[0]-1] += h*Le/2
+                f[element[1]-1] += h*Le/2
             if element[2] in bdofs[qh]:
                 x1 = coords[element[0] - 1][0]
                 x2 = coords[element[2] - 1][0]
                 y1 = coords[element[0] - 1][1]
                 y2 = coords[element[2] - 1][1]
                 Le = np.sqrt((x2-x1)**2 + (y2-y1)**2)
-                f[element[0]] += h*Le/2
-                f[element[2]] += h*Le/2
+                f[element[0]-1] += h*Le/2
+                f[element[2]-1] += h*Le/2
         if element[1] in bdofs[qh]:
             if element[2] in bdofs[qh]:
                 x1 = coords[element[1] - 1][0]
@@ -168,8 +169,8 @@ def main():
                 y1 = coords[element[1] - 1][1]
                 y2 = coords[element[2] - 1][1]
                 Le = np.sqrt((x2-x1)**2 + (y2-y1)**2)
-                f[element[1]] += h*Le/2
-                f[element[2]] += h*Le/2
+                f[element[1]-1] += h*Le/2
+                f[element[2]-1] += h*Le/2
 
     # Applying boundary conditions
     bc = np.array([], 'i')
@@ -180,11 +181,12 @@ def main():
     #bc, bcVal = cfu.applybc(bdofs, bc, bcVal, qn, alpha*T_inf)
 
     Kt = np.add(K, Kc)
+    print(np.linalg.det(Kt))
     
     
     #print(fb)
     a, r = cfc.solveq(Kt, f, bc)
-    print(a)
+    #print(a)
     #print(bcVal)
 
     #ed = cfc.extract_eldisp(edof, a)
@@ -206,6 +208,29 @@ def main():
     cfv.draw_nodal_values_shaded(a, coords, edof, title="Temperature")
     cfv.colorbar()
     cfv.draw_geometry(g)
-    cfv.showAndWait()
+    #cfv.showAndWait()
+
+    ## transient heat
+    C = np.zeros([nDofs,nDofs]) # Global transient matrix
+
+    transient_scalar = {}
+    transient_scalar[nylon] = cp_n*rho_n
+    transient_scalar[copper] = cp_c*rho_c
+
+
+    for eltopo, elx, ely, elMarker in zip(edof, ex, ey, elementmarkers):
+        #print(eltopo)
+        #print(elx)
+        #print(ely)
+        Ce = plantml.plantml(elx, ely, transient_scalar[elMarker])
+        C = cfc.assem(eltopo, C, Ce)
+    
+    a0 = T_inf*np.ones((nDofs, 1))
+    a_n = a0
+    dt = 0.1
+    #print(np.linalg.det(Kc))
+
+
+    
 
 main()
