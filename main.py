@@ -34,7 +34,7 @@ def main() -> None:
     gripper = GripperGeometry()
 
     # solve and plot stationary temperature distribution
-    a, _, _, _, mesh = solve.stat_temp_dist(gripper, T_inf, h)
+    mesh, a, _, _, _ = solve.stat_temp_dist(gripper, T_inf, h)
     plot_stat_temp_dist(a, mesh)
 
 

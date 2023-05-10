@@ -10,8 +10,8 @@ def stat_temp_dist(
         gripper: GripperGeometry,
         T_inf: float,
         h: float
-    ) -> Tuple[NDArray[np.float64], NDArray[np.float64], NDArray[np.float64],
-               NDArray[np.float64], GripperMesh]:
+    ) -> Tuple[GripperMesh, NDArray[np.float64], NDArray[np.float64],
+               NDArray[np.float64], NDArray[np.float64]]:
 
     """Solves the stationary temperature distribution of the thermo-mechanical
     gripper.
@@ -22,7 +22,9 @@ def stat_temp_dist(
     - `h`: heat flux in W/m2
     
     ## Returns:
+    - `mesh`: `GripperMesh` object
     - `a`: node temperatures
+    - `r`: reaction force vector
     - `K`: stiffness matrix with convection
     - `f`: force vector
     """
@@ -40,4 +42,4 @@ def stat_temp_dist(
     # solve for node temperatures and 
     a, r = cfc.solveq(K, f, bc)
 
-    return a, r, K, f, mesh
+    return mesh, a, r, K, f
