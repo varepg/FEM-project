@@ -1,11 +1,11 @@
 from __future__ import annotations
 import calfem.geometry as cfg
 import calfem.mesh as cfm
-from enum import Enum, auto
+from enum import IntEnum, auto
 from numpy.typing import NDArray
 
 
-class GripperMarker(Enum):
+class GripperMarker(IntEnum):
     q0 = auto()
     qh = auto()
     qn = auto()
@@ -45,7 +45,7 @@ class GripperGeometry(cfg.Geometry):
 
     def __init__(self) -> None:
         super().__init__()
-        self.marker = GripperMarker()
+        self.marker = GripperMarker
         self._setup_points()
         self._setup_lines()
         self._setup_surfaces()
