@@ -20,24 +20,26 @@ class GripperGeometry(cfg.Geometry):
     - Length: `L`
     - Young's modulus: `E_c`, `E_n`
     - Poisson's ratio: `mu_c`, `mu_n`
-    - Expansion coefficient: `alpha_c`, `alpha_n`
+    - Expansion coefficient: `alpha_exp_c`, `alpha_exp_n`
     - Denisty: `rho_c`, `rho_n`
     - Specific heat: `cp_c`, `cp_n`
     - Thermal conductivity: `k_c`, `k_n`
+    - Convection coefficient: `alpha_conv_c`
     """
     L = 0.005
     E_c = 128e9
     E_n = 3.00e9
     mu_c = 0.36
     mu_n = 0.39
-    alpha_c = 17.6e-6
-    alpha_n = 80e-6
+    alpha_exp_c = 17.6e-6
+    alpha_exp_n = 80e-6
     rho_c = 8930
     rho_n = 1100
     cp_c = 386
     cp_n = 1500
     k_c = 385
     k_n = 0.26
+    alpha_conv_c = 40
 
     marker: GripperMarker
 
