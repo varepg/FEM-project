@@ -1,6 +1,7 @@
 import calfem.core as cfc
 import calfem.utils as cfu
 from gripper import GripperGeometry, GripperMesh
+from plantml import plantml
 from numpy.typing import NDArray
 from typing import Tuple
 
@@ -20,21 +21,21 @@ def get_eq(
         T_inf: float,
         h: float
     ) -> Tuple[NDArray[np.float64], NDArray[np.float64]]:
-    
-    nDofs = np.size(mesh.dofs)
-    ex, ey = cfc.coordxtr(mesh.edof, mesh.coords, mesh.dofs)
-    K = np.zeros([nDofs,nDofs])
-    Kc = np.zeros([nDofs,nDofs])
-    f = np.zeros([nDofs,1])
 
-    
+    ndofs = np.size(mesh.dofs)
+    ex, ey = cfc.coordxtr(mesh.edof, mesh.coords, mesh.dofs)
+    K = np.zeros([ndofs,ndofs])
+    Kc = np.zeros([ndofs,ndofs])
+    f = np.zeros([ndofs,1])
+
+
     const_matrix = {
         gripper.marker.nylon: gripper.k_n*np.identity(2),
         gripper.marker.copper: gripper.k_c*np.identity(2)
     }
-    
-    for eltopo, elx, ely, elMarker in zip(mesh.edof, ex, ey, mesh.el_markers):
-        Ke = cfc.flw2te(elx, ely, [1], const_matrix[elMarker])
+
+    for eltopo, elx, ely, el_marker in zip(mesh.edof, ex, ey, mesh.el_markers):
+        Ke = cfc.flw2te(elx, ely, [1], const_matrix[el_marker])
         K = cfc.assem(eltopo, K, Ke)
 
     for element in mesh.edof:
@@ -60,3 +61,21 @@ def get_eq(
                     f[element[j]-1] += h*Le/2
     K = K + Kc
     return K, f
+
+
+def get_C(gripper: GripperGeometry, mesh: GripperMesh):
+    ndofs = np.size(mesh.dofs)
+    ex, ey = cfc.coordxtr(mesh.edof, mesh.coords, mesh.dofs)
+
+    C = np.zeros((ndofs, ndofs))
+
+    el_prop = {
+        gripper.marker.nylon: gripper.rho_n*gripper.cp_n,
+        gripper.marker.copper: gripper.rho_c*gripper.cp_c
+    }
+
+    for eltopo, elx, ely, el_marker in zip(mesh.edof, ex, ey, mesh.el_markers):
+        Ce = plantml(elx, ely, el_prop[el_marker])
+        C = cfc.assem(eltopo, C, Ce)
+
+    return C
