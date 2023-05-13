@@ -46,11 +46,28 @@ def stat_temp_dist(
     return mesh, a, r, K, f
 
 
-def transient_temp_dist(gripper: GripperGeometry, T_inf: float, h: float, dt: float):
+def transient_temp_step(
+        gripper: GripperGeometry,
+        mesh: GripperMesh,
+        a_old: NDArray[np.float64],
+        dt: float,
+        K: NDArray[np.float64],
+        f: NDArray[np.float64],
+        C: NDArray[np.float64]
+    ) -> float:
+
+    A = C+dt*K
+    dtf = dt*f
+
+    b = (C@a_old).reshape(np.size(a_old), 1) + dtf
+    a_new = linalg.solve(A, b)
+
+    return a_new
+
+
+def transient_90percent_stat(gripper: GripperGeometry, T_inf: float, h: float, dt: float):
     mesh, a_stat, _, K, f = stat_temp_dist(gripper, T_inf, h)
     ndofs = np.size(mesh.dofs)
-
-    C = get_C(gripper, mesh)
 
     idx_max = np.argmax(a_stat)
     pt9a_stat_max = 0.9*a_stat[idx_max]
@@ -58,12 +75,10 @@ def transient_temp_dist(gripper: GripperGeometry, T_inf: float, h: float, dt: fl
     a = T_inf * np.ones((ndofs, 1))
     a_new = a
 
-    A = C+dt*K
-    dtf = dt*f
+    C = get_C(gripper, mesh)
 
     while a_new[idx_max] < pt9a_stat_max:
-        b = (C@a[:,-1]).reshape(ndofs, 1) + dtf
-        a_new = linalg.solve(A, b)
+        a_new = transient_temp_step(gripper, mesh, a[:,-1], dt, K, f, C)
         a = np.hstack((a, a_new))
 
     nbr_steps = np.shape(a)[1]
