@@ -28,7 +28,7 @@ def main() -> None:
     h = 1e5
 
     # Surrounding temperature
-    T_inf = 18 + 273.15
+    T_inf = 18
 
     # define geometry
     gripper = GripperGeometry()
@@ -38,7 +38,7 @@ def main() -> None:
     plot_stat_temp_dist(a, mesh)
 
     # timesstep
-    dt = 1.0
+    dt = 0.5
 
     # solve and plot 5 snapshots of transient temperature distribution
     #     (stops iterating when the max node temperature reaches 90% of the max
@@ -47,7 +47,9 @@ def main() -> None:
     a_transient, nbr_steps = solve.transient_temp_dist(gripper, T_inf, h, dt)
     for i in range(0, nbr_steps, nbr_steps//5):
         plot_stat_temp_dist(a_transient[:,i], mesh)
-
+        
+    
+    print("Time to get to 90%: " + str(nbr_steps*dt))
 
 if __name__ == "__main__":
     main()

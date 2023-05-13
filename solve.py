@@ -31,7 +31,7 @@ def stat_temp_dist(
     """
 
     mesh = gripper.mesh(el_type=2,              # triangular elements
-                        el_size_factor=0.05,
+                        el_size_factor=0.02,
                         dofs_per_node=1)        # node temperature
 
     # get FE formulation of stationary heat equation

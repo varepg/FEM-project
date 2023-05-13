@@ -13,6 +13,7 @@ def get_Le(coords, node1, node2):
     y1 = coords[node1 - 1][1]
     y2 = coords[node2 - 1][1]
     return np.sqrt((x2-x1)**2 + (y2-y1)**2)
+    
 
 
 def get_eq(
@@ -51,7 +52,7 @@ def get_eq(
             for j in range(i + 1, 3):
                 if in_boundary_qn[i] and in_boundary_qn[j]:
                     Le = get_Le(mesh.coords, element[i], element[j])
-                    Kce = gripper.alpha_conv_c*Le/6*np.array([[2, -1], [-1, 2]])
+                    Kce = gripper.alpha_conv_c*Le/6*np.array([[2, 1], [1, 2]])
                     f[element[i]-1] += gripper.alpha_conv_c*Le*T_inf/2
                     f[element[j]-1] += gripper.alpha_conv_c*Le*T_inf/2
                     Kc = cfc.assem(np.array([element[i], element[j]]), Kc, Kce)
