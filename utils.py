@@ -1,5 +1,4 @@
 import calfem.core as cfc
-import calfem.utils as cfu
 from gripper import GripperGeometry, GripperMesh
 from plantml import plantml
 from numpy.typing import NDArray
@@ -14,7 +13,6 @@ def get_Le(coords, node1, node2):
     y2 = coords[node2 - 1][1]
     return np.sqrt((x2-x1)**2 + (y2-y1)**2)
     
-
 
 def get_eq(
         gripper: GripperGeometry,
@@ -78,12 +76,3 @@ def get_C(gripper: GripperGeometry, mesh: GripperMesh):
         C = cfc.assem(eltopo, C, Ce)
 
     return C
-
-def get_D_plain_strain(E: float, nu: float):
-    D = (E /((1+nu)*(1-2*nu))
-        *np.array([
-                [1 - nu, nu, 0],
-                [nu, 1 - nu, 0],
-                [0, 0, 1/2*(1-2*nu)]
-        ]))
-    return D
