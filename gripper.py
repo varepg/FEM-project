@@ -1,8 +1,10 @@
 from __future__ import annotations
 import calfem.geometry as cfg
 import calfem.mesh as cfm
+import calfem.core as cfc
 from enum import IntEnum, auto
 from numpy.typing import NDArray
+import numpy as np
 
 
 class GripperMarker(IntEnum):
@@ -11,6 +13,9 @@ class GripperMarker(IntEnum):
     qn = auto()
     nylon = auto()
     copper = auto()
+    q0_and_clamped = auto()
+    clamped_y = auto()
+    clamped_x = auto()
 
 
 class GripperGeometry(cfg.Geometry):
@@ -29,8 +34,8 @@ class GripperGeometry(cfg.Geometry):
     L = 0.005
     E_c = 128e9
     E_n = 3.00e9
-    mu_c = 0.36
-    mu_n = 0.39
+    nu_c = 0.36
+    nu_n = 0.39
     alpha_exp_c = 17.6e-6
     alpha_exp_n = 80e-6
     rho_c = 8930
@@ -62,26 +67,14 @@ class GripperGeometry(cfg.Geometry):
     def _setup_points(self) -> None:
         """Generates points ordered from 0-19."""
 
-        self.point([0.0, 0.0])                 # point 0
-        self.point([0.35*self.L, 0.0])         # point 1
-        self.point([0.45*self.L, 0.0])         # point 2
-        self.point([0.9*self.L, 0.25*self.L])  # point 3
-        self.point([self.L, 0.25*self.L])      # point 4
-        self.point([self.L, 0.3*self.L])       # point 5
-        self.point([0.9*self.L, 0.3*self.L])   # point 6
-        self.point([0.45*self.L, 0.05*self.L]) # point 7
-        self.point([0.45*self.L, 0.35*self.L]) # point 8
-        self.point([0.4*self.L, 0.4*self.L])   # point 9
-        self.point([0.1*self.L, 0.4*self.L])   # point 10
-        self.point([0.1*self.L, 0.5*self.L])   # point 11
-        self.point([0.0, 0.5*self.L])          # point 12
-        self.point([0.0, 0.4*self.L])          # point 13
-        self.point([0.0, 0.3*self.L])          # point 14
-        self.point([0.1*self.L, 0.3*self.L])   # point 15
-        self.point([0.1*self.L, 0.15*self.L])  # point 16
-        self.point([0.15*self.L, 0.15*self.L]) # point 17
-        self.point([0.15*self.L, 0.3*self.L])  # point 18
-        self.point([0.35*self.L, 0.3*self.L])  # point 19
+        points = [[0, 0], [0.35, 0], [0.45, 0], [0.9, 0.25], [1, 0.25],     #0-4
+          [1, 0.3], [0.9, 0.3], [0.45, 0.05], [0.45, 0.35], [0.4, 0.4],     #5-9
+          [0.1, 0.4], [0.1, 0.5], [0, 0.5], [0, 0.4], [0, 0.3],             #10-14
+          [0.1, 0.3], [0.1, 0.15], [0.15, 0.15], [0.15, 0.3], [0.35, 0.3]]  #15-19
+        
+        #quadrant 1
+        for xp, yp in points:
+            self.point([xp*self.L, yp*self.L])  #0 - 19
 
     def _setup_lines(self) -> None:
         """Generates lines between the points, with boundary markers.
@@ -95,17 +88,27 @@ class GripperGeometry(cfg.Geometry):
         self.spline([0, 1], marker=self.marker.q0)         # line 0
         self.spline([1, 2], marker=self.marker.q0)         # line 1
 
-        for i in range(2, 12):
-            self.spline([i, i+1], marker = self.marker.qn) # line 2 - 12
+        self.spline([2, 3], marker = self.marker.qn)         # line 2
+        self.spline([3, 4], marker = self.marker.qn)         # line 3
 
-        self.spline([12, 13], marker=self.marker.qh)       # line 13
-        self.spline([13, 14], marker=self.marker.q0)       # line 14
+        self.spline([4, 5], marker = self.marker.clamped_x)   # line 4
+        
+
+        for i in range(5, 11):
+            self.spline([i, i+1], marker = self.marker.qn) # line 5 - 10
+        
+        self.spline([11, 12], marker = self.marker.clamped_y)  # line 11
+
+        self.spline([12, 13], marker=self.marker.qh)       # line 12
+        self.spline([13, 14], marker=self.marker.q0_and_clamped)       # line 13
 
         for i in range(14, 19):
             self.spline([i, i+1])                          # line 14 - 18
 
         self.spline([19, 1])                               # line 19
-        self.spline([14, 0], marker=self.marker.q0)        # line 20
+        self.spline([14, 0], marker=self.marker.q0_and_clamped)        # line 20
+
+        
 
     def _setup_surfaces(self) -> None:
         self.surface([0, 19, 18, 17, 16, 15, 14, 20], marker = self.marker.nylon)
@@ -118,6 +121,11 @@ class GripperMesh(cfm.GmshMesh):
     dofs: NDArray
     bdofs: dict
     el_markers: list[GripperMarker]
+    ex: NDArray
+    ey: NDArray
+    n_nodes: int
+    n_dofs: int
+    n_elm: int
 
     def __init__(self,
                  geometry: GripperGeometry,
@@ -135,3 +143,9 @@ class GripperMesh(cfm.GmshMesh):
 
         (self.coords, self.edof, self.dofs,
         self.bdofs, self.el_markers) = self.create()
+
+        (self.ex, self.ey) = cfc.coordxtr(self.edof, self.coords, self.dofs)
+        
+        self.n_nodes = np.shape(self.dofs)[0]
+        self.n_dofs = np.size(self.dofs)
+        self.n_elm = np.shape(self.edof)[0]

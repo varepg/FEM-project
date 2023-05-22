@@ -24,19 +24,18 @@ def get_eq(
     ) -> Tuple[NDArray[np.float64], NDArray[np.float64]]:
 
     ndofs = np.size(mesh.dofs)
-    ex, ey = cfc.coordxtr(mesh.edof, mesh.coords, mesh.dofs)
     K = np.zeros([ndofs,ndofs])
     Kc = np.zeros([ndofs,ndofs])
     f = np.zeros([ndofs,1])
 
 
-    const_matrix = {
+    constitutive_matrix = {
         gripper.marker.nylon: gripper.k_n*np.identity(2),
         gripper.marker.copper: gripper.k_c*np.identity(2)
     }
 
-    for eltopo, elx, ely, el_marker in zip(mesh.edof, ex, ey, mesh.el_markers):
-        Ke = cfc.flw2te(elx, ely, [1], const_matrix[el_marker])
+    for eltopo, elx, ely, el_marker in zip(mesh.edof, mesh.ex, mesh.ey, mesh.el_markers):
+        Ke = cfc.flw2te(elx, ely, [1], constitutive_matrix[el_marker])
         K = cfc.assem(eltopo, K, Ke)
 
     for element in mesh.edof:
@@ -44,7 +43,7 @@ def get_eq(
         in_boundary_qn = [False, False, False]
         in_boundary_qh = [False, False, False]
         for i in range(3):
-            if element[i] in mesh.bdofs[gripper.marker.qn]:
+            if element[i] in (mesh.bdofs[gripper.marker.qn]):
                 in_boundary_qn[i] = True
             if element[i] in mesh.bdofs[gripper.marker.qh]:
                 in_boundary_qh[i] = True
@@ -66,7 +65,6 @@ def get_eq(
 
 def get_C(gripper: GripperGeometry, mesh: GripperMesh):
     ndofs = np.size(mesh.dofs)
-    ex, ey = cfc.coordxtr(mesh.edof, mesh.coords, mesh.dofs)
 
     C = np.zeros((ndofs, ndofs))
 
@@ -75,8 +73,17 @@ def get_C(gripper: GripperGeometry, mesh: GripperMesh):
         gripper.marker.copper: gripper.rho_c*gripper.cp_c
     }
 
-    for eltopo, elx, ely, el_marker in zip(mesh.edof, ex, ey, mesh.el_markers):
+    for eltopo, elx, ely, el_marker in zip(mesh.edof, mesh.ex, mesh.ey, mesh.el_markers):
         Ce = plantml(elx, ely, el_prop[el_marker])
         C = cfc.assem(eltopo, C, Ce)
 
     return C
+
+def get_D_plain_strain(E: float, nu: float):
+    D = (E /((1+nu)*(1-2*nu))
+        *np.array([
+                [1 - nu, nu, 0],
+                [nu, 1 - nu, 0],
+                [0, 0, 1/2*(1-2*nu)]
+        ]))
+    return D
