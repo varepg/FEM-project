@@ -7,7 +7,16 @@ from typing import Tuple
 import numpy as np
 
 
-def get_Le(coords, node1, node2):
+def get_Le(coords: NDArray, node1: int, node2: int) -> float:
+    """Returns the distance between two nodes.
+
+    ## Parameters:
+    - `coords`: coordinates for each node
+    - `node1`: number for node 1
+    - `node2`: number for node 2
+
+    ## Returns distance node 1 and node 2
+    """
     x1 = coords[node1 - 1][0]
     x2 = coords[node2 - 1][0]
     y1 = coords[node1 - 1][1]
@@ -21,7 +30,19 @@ def get_eq(
         T_inf: float,
         h: float
     ) -> Tuple[NDArray[np.float64], NDArray[np.float64]]:
+    """Calculates the stiffness matrix and force vector for the FE formulation
+    of the stationery temperature distribution in one quarter of the gripper. 
 
+    ## Parameters:
+    - `gripper`: `GripperGeometry` object
+    - `mesh`: `GripperMesh` object
+    - `T_inf`: surrounding temperature in K
+    - `h`: heat flux in W/m2
+
+    ## Returns:
+    - `K`: The stiffness matrix
+    - `f`: The force vector
+    """
     ndofs = np.size(mesh.dofs)
     K = np.zeros([ndofs,ndofs])
     Kc = np.zeros([ndofs,ndofs])
@@ -61,7 +82,17 @@ def get_eq(
     return K, f
 
 
-def get_C(gripper: GripperGeometry, mesh: GripperMesh):
+def get_C(gripper: GripperGeometry, mesh: GripperMesh) -> NDArray:
+    """Calculates the C matrix for the FE formulation of the transient
+    temperature distribution in one quarter of the gripper. 
+
+    ## Parameters:
+    - `gripper`: `GripperGeometry` object
+    - `mesh`: `GripperMesh` object
+
+    ## Returns:
+    - `C`: The C matrix
+    """
     ndofs = np.size(mesh.dofs)
 
     C = np.zeros((ndofs, ndofs))

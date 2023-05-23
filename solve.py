@@ -31,7 +31,7 @@ def stat_temp_dist(
     """
 
     mesh = gripper.mesh(el_type=2,              # triangular elements
-                        el_size_factor=0.15,
+                        el_size_factor=0.02,
                         dofs_per_node=1)        # node temperature
 
     # get FE formulation of stationary heat equation
@@ -125,13 +125,28 @@ def get_displacement(
         mesh: GripperMesh,
         stat_a: NDArray,
         T_inf: float
-    ):
-    mesh2 = gripper.mesh(el_type=mesh.el_type,             # triangular elements
+    ) -> Tuple[GripperMesh, NDArray[np.float64], map, NDArray[np.float64]]:
+    """Solves the displacement in one quarter of the gripper as a result of the
+    stationary thermal distribution. 
+
+    ## Parameters:
+    - `gripper`: `GripperGeometry` object
+    - `mesh`: `GripperMesh` object with one dof per node
+    - `stat_a`: node temperatures in stationary distribution
+    - `T_inf`: surrounding temperature in K
+
+    ## Returns:
+    - `mesh_2d`: `GripperMesh` object with two dofs per node
+    - `u`: node displacements in x- and y-direction
+    - `values`: map containing material-specific values
+    - `el_dT`: average element temperatures
+    """
+    mesh_2d = gripper.mesh(el_type=mesh.el_type,             # triangular elements
                         el_size_factor=mesh.el_size_factor,
                         dofs_per_node=2)
 
-    n_nodes = mesh2.n_nodes
-    n_dofs = mesh2.n_dofs
+    n_nodes = mesh_2d.n_nodes
+    n_dofs = mesh_2d.n_dofs
     K = np.zeros([n_dofs,n_dofs])
     f = np.zeros([n_dofs, 1])
     ptype = 2                       # 1 = plane stress, 2 = plane strain
@@ -144,7 +159,9 @@ def get_displacement(
     }
 
     el_dT = []
-    for eltopo, old_eltopo, elx, ely, el_marker in zip(mesh2.edof, mesh.edof, mesh2.ex, mesh2.ey, mesh2.el_markers):
+    element_props = zip(mesh_2d.edof, mesh.edof, mesh_2d.ex, mesh_2d.ey,
+                        mesh_2d.el_markers)
+    for eltopo, old_eltopo, elx, ely, el_marker in element_props:
         # Getting material-specific values
         alpha, E, nu = values[el_marker]
         D = cfc.hooke(2, E, nu)[np.ix_([0, 1, 3], [0, 1, 3])]
@@ -170,20 +187,20 @@ def get_displacement(
     bc = np.array([],'i')
     bc_val = np.array([],'f')
 
-    bc, bc_val = cfu.apply_bc(mesh2.bdofs, bc, bc_val, gripper.marker.qh)
-    bc, bc_val = cfu.apply_bc(mesh2.bdofs, bc, bc_val, gripper.marker.q0_and_clamped)
+    bc, bc_val = cfu.apply_bc(mesh_2d.bdofs, bc, bc_val, gripper.marker.qh)
+    bc, bc_val = cfu.apply_bc(mesh_2d.bdofs, bc, bc_val, gripper.marker.q0_and_clamped)
 
     # Setting the boundary values at the symmetry lines
-    for el in mesh2.bdofs[gripper.marker.clamped_x]:
+    for el in mesh_2d.bdofs[gripper.marker.clamped_x]:
         if el%2 == 1:
             bc = np.append(bc, el)
-    for el in mesh2.bdofs[gripper.marker.clamped_y]:
+    for el in mesh_2d.bdofs[gripper.marker.clamped_y]:
         if el%2 == 0:
             bc = np.append(bc, el)
 
-    a, r = cfc.solveq(K, f, bc)
+    u, _ = cfc.solveq(K, f, bc)
 
-    return mesh2, a, values, el_dT
+    return mesh_2d, u, values, el_dT
 
 
 def get_stress(
@@ -193,7 +210,19 @@ def get_stress(
         values: dict,
         el_dTs: NDArray[np.float64]
     ) -> NDArray[np.float64]:
+    """Solves the nodal von Mises stress in one quarter of the gripper as a
+    result of the displacement caused by the stationary thermal distribution. 
 
+    ## Parameters:
+    - `gripper`: `GripperGeometry` object
+    - `mesh`: `GripperMesh` object with one dof per node
+    - `u`: node displacements in x- and y-direction
+    - `values`: map containing material-specific values
+    - `el_dTs`: average element temperatures
+
+    ## Returns:
+    - `nodal_stresses`: nodal von Mises stresses
+    """
     ptype = 2
     ep = [ptype, 1]
     u_edof = cfc.extract_eldisp(mesh.edof, u)
