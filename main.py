@@ -13,6 +13,7 @@ def plot_temp_dist(
         clim=None,
         title = None
     )-> None:
+    """Plots temperature distribution for a quarter of the gripper."""
 
     cfv.figure(fig_size=(8,8))
 
