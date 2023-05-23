@@ -14,7 +14,6 @@ def stat_temp_dist(
         h: float
     ) -> Tuple[GripperMesh, NDArray[np.float64], NDArray[np.float64],
                NDArray[np.float64], NDArray[np.float64]]:
-
     """Solves the stationary temperature distribution of the thermo-mechanical
     gripper.
 
@@ -22,7 +21,7 @@ def stat_temp_dist(
     - `gripper`: `GripperGeometry` object
     - `T_inf`: surrounding temperature in K
     - `h`: heat flux in W/m2
-    
+
     ## Returns:
     - `mesh`: `GripperMesh` object
     - `a`: node temperatures
@@ -55,7 +54,22 @@ def transient_temp_step(
         K: NDArray[np.float64],
         f: NDArray[np.float64],
         C: NDArray[np.float64]
-    ) -> float:
+    ) -> NDArray[np.float64]:
+    """Performs one timestep for the transient heat distribution of the thermo-
+    mechanical gripper.
+
+    ## Parameters:
+    - `gripper`: `GripperGeometry` object
+    - `mesh`: `GripperMesh` object
+    - `a_old`: node temperatures in the previous step
+    - `dt`: size of timestep in s
+    - `K`: stiffness matrix with convection
+    - `f`: force vector
+    - `C`: capacity matrix
+
+    ## Returns:
+    - `a_new`: node temperatures in the next step
+    """
 
     A = C+dt*K
     dtf = dt*f
@@ -66,7 +80,26 @@ def transient_temp_step(
     return a_new
 
 
-def transient_90percent_stat(gripper: GripperGeometry, T_inf: float, h: float, dt: float):
+def transient_90percent_stat(
+        gripper: GripperGeometry,
+        T_inf: float, 
+        h: float,
+        dt: float
+    ) -> Tuple[NDArray[np.float64], int]:
+    """Solves the transient heat distribution of the thermo-mechanical gripper,
+    stopping when the max node temperature has increased to 90% of the increase
+    in the stationary case.
+
+    ## Parameters:
+    - `gripper`: `GripperGeometry` object
+    - `T_inf`: surrounding temperature in K
+    - `h`: heat flux in W/m2
+    - `dt`: size of timestep in s
+
+    ## Returns:
+    - `a`: node temperatures at 90% of stationary increase
+    - `nbr_steps`: number of timesteps taken
+    """
     mesh, a_stat, _, K, f = stat_temp_dist(gripper, T_inf, h)
     ndofs = np.size(mesh.dofs)
 
@@ -86,9 +119,14 @@ def transient_90percent_stat(gripper: GripperGeometry, T_inf: float, h: float, d
 
     return a, nbr_steps
 
-def get_displacement(gripper: GripperGeometry, mesh: GripperMesh, stat_a: NDArray, T_inf: float):
-    
-    mesh2 = gripper.mesh(el_type=mesh.el_type,              # triangular elements
+
+def get_displacement(
+        gripper: GripperGeometry,
+        mesh: GripperMesh,
+        stat_a: NDArray,
+        T_inf: float
+    ):
+    mesh2 = gripper.mesh(el_type=mesh.el_type,             # triangular elements
                         el_size_factor=mesh.el_size_factor,
                         dofs_per_node=2)
 
@@ -114,7 +152,7 @@ def get_displacement(gripper: GripperGeometry, mesh: GripperMesh, stat_a: NDArra
         # Assembling K
         Ke = cfc.plante(elx, ely, ep, D)
         K = cfc.assem(eltopo, K, Ke)
-        
+
         # Finding the element's average temperature difference
         delta_T = np.mean((
             stat_a[old_eltopo[0] - 1],
@@ -131,7 +169,7 @@ def get_displacement(gripper: GripperGeometry, mesh: GripperMesh, stat_a: NDArra
     # Setting boundary values at x = 0
     bc = np.array([],'i')
     bc_val = np.array([],'f')
-    
+
     bc, bc_val = cfu.apply_bc(mesh2.bdofs, bc, bc_val, gripper.marker.qh)
     bc, bc_val = cfu.apply_bc(mesh2.bdofs, bc, bc_val, gripper.marker.q0_and_clamped)
 
@@ -142,7 +180,6 @@ def get_displacement(gripper: GripperGeometry, mesh: GripperMesh, stat_a: NDArra
     for el in mesh2.bdofs[gripper.marker.clamped_y]:
         if el%2 == 0:
             bc = np.append(bc, el)
-    
 
     a, r = cfc.solveq(K, f, bc)
 
@@ -152,15 +189,15 @@ def get_displacement(gripper: GripperGeometry, mesh: GripperMesh, stat_a: NDArra
 def get_stress(
         gripper: GripperGeometry,
         mesh: GripperMesh,
-        u: NDArray,
-        values: map,
-        el_dTs: NDArray
-        ) -> NDArray:
-    
+        u: NDArray[np.float64],
+        values: dict,
+        el_dTs: NDArray[np.float64]
+    ) -> NDArray[np.float64]:
+
     ptype = 2
     ep = [ptype, 1]
     u_edof = cfc.extract_eldisp(mesh.edof, u)
-    
+
     stresses = []
     element_props = zip(mesh.ex, mesh.ey, u_edof, mesh.el_markers, el_dTs)
 
@@ -181,17 +218,11 @@ def get_stress(
         stresses = np.append(stresses, stress)
         
         nodal_stresses = np.zeros((mesh.n_nodes, 1))
-    
+
     for node in range(mesh.n_nodes):
         x, y = mesh.dofs[node]
         indexes = np.where(mesh.edof == x)[0]
         mean_stress = np.mean(stresses[indexes])
         nodal_stresses[node] = mean_stress
-    
-    return nodal_stresses
 
-    
-    
-    
-    
-    
+    return nodal_stresses

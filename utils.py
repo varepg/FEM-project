@@ -6,13 +6,14 @@ from typing import Tuple
 
 import numpy as np
 
+
 def get_Le(coords, node1, node2):
     x1 = coords[node1 - 1][0]
     x2 = coords[node2 - 1][0]
     y1 = coords[node1 - 1][1]
     y2 = coords[node2 - 1][1]
     return np.sqrt((x2-x1)**2 + (y2-y1)**2)
-    
+
 
 def get_eq(
         gripper: GripperGeometry,
@@ -25,7 +26,6 @@ def get_eq(
     K = np.zeros([ndofs,ndofs])
     Kc = np.zeros([ndofs,ndofs])
     f = np.zeros([ndofs,1])
-
 
     constitutive_matrix = {
         gripper.marker.nylon: gripper.k_n*np.identity(2),
