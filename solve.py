@@ -31,7 +31,7 @@ def stat_temp_dist(
     """
 
     mesh = gripper.mesh(el_type=2,              # triangular elements
-                        el_size_factor=0.02,
+                        el_size_factor=0.01,
                         dofs_per_node=1)        # node temperature
 
     # get FE formulation of stationary heat equation
@@ -239,8 +239,8 @@ def get_stress(
         sigx -= alpha*E*delta_T/(1-2*nu) #remove thermal stress
         sigy -= alpha*E*delta_T/(1-2*nu) #remove thermal stress
 
-        sigz = (E / ((1 + nu)*(1 - 2*nu))*(et[0][0] + et[0][1]) 
-                - alpha*E*delta_T / (1 - 2*nu))
+        sigz = (E * nu / ((1 + nu)*(1 - 2*nu))*(et[0][0] + et[0][1]) 
+               - alpha*E*delta_T / (1 - 2*nu))
 
         stress = np.sqrt(sigx**2 + sigy**2 + sigz**2 - sigx*sigy - sigx*sigz 
                          - sigy*sigz + 3*tauxy**2)

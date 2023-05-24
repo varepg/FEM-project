@@ -1,6 +1,7 @@
 import calfem.vis_mpl as cfv
 import numpy as np
 import solve
+import matplotlib.pyplot as plt
 
 from gripper import GripperGeometry, GripperMesh
 from vis_extra import draw_nodal_values_shaded_clim_cmap
@@ -32,6 +33,10 @@ def plot_temp_dist(
                                        cmap="YlOrRd")
 
     cfv.colorbar()
+    plt.xlabel("Length (m)")
+    plt.ylabel("Height (m)")
+
+    
     cfv.show_and_wait()
 
 
@@ -50,7 +55,8 @@ def plot_displacement(
     draw_quarter(np.multiply(flip_y, u), [0, L]+[1, -1]*mesh.coords, mesh)
     draw_quarter(np.multiply(flip_y*flip_x, u),[2*L, L]+[-1, -1]*mesh.coords, mesh)
     draw_quarter(np.multiply(flip_x, u), [2*L, 0]+[-1, 1]*mesh.coords, mesh)
-
+    plt.xlabel("Length (m)")
+    plt.ylabel("Height (m)")
     cfv.show_and_wait()
 
 
@@ -121,6 +127,8 @@ def main() -> None:
         title="von Mises stress",
         dofs_per_node = mesh_2d.dofs_per_node)
     cfv.colorbar()
+    plt.xlabel("Length (m)")
+    plt.ylabel("Height (m)")
     cfv.show_and_wait()
 
 
